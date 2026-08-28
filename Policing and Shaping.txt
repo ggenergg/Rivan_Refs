@@ -1,0 +1,678 @@
+
+## Quality of Service
+
+~~~
+!@UTM-PH  R1
+conf t
+ hostname UTM-PH--R1
+ enable secret pass
+ service password-encryption
+ no logging cons
+ ip domain lookup
+ ip domain lookup source-interface G1
+ ip name-server 8.8.8.8
+ line vty 0 14
+  transport input all
+  password pass
+  login local
+  exec-timeout 0 0
+ int g1
+  ip add 208.8.8.11 255.255.255.0
+  ip nat outside
+  no shut
+ int g2
+  ip add 192.168.102.11 255.255.255.0
+  ip nat inside
+  no shut
+ int g3
+  ip add 192.168.103.11 255.255.255.0
+  ip nat inside
+  no shut
+ !
+ ip access-list extended NAT
+  permit ip 192.168.102.0 0.0.0.255 any
+  permit ip 192.168.103.0 0.0.0.255 any
+ !
+ ip nat inside source list NAT int g1 overload
+ ip nat inside source static tcp 192.168.103.101 80 208.8.8.11 8081
+ ip nat inside source static tcp 192.168.103.102 80 208.8.8.11 8082
+ ip nat inside source static tcp 192.168.103.103 80 208.8.8.11 8083
+ !
+ username admin privilege 15 secret pass
+ ip http server
+ ip http secure-server
+ ip http authentication local
+ ip route 0.0.0.0 0.0.0.0 208.8.8.2
+ end
+wr
+!
+~~~
+
+<br>
+
+~~~
+!@PC-NOC
+sudo su
+hostname PH-NOC
+ifconfig eth0 192.168.103.101 netmask 255.255.255.0 up
+route add default gw 192.168.103.11
+ping 192.168.103.11
+~~~
+
+<br>
+
+~~~
+!@PC-SOC
+sudo su
+hostname PH-SOC
+ifconfig eth0 192.168.103.102 netmask 255.255.255.0 up
+route add default gw 192.168.103.11
+ping 192.168.103.11
+~~~
+
+<br>
+
+~~~
+!@PC-HR
+sudo su
+hostname PH-HR
+ifconfig eth0 192.168.103.103 netmask 255.255.255.0 up
+route add default gw 192.168.103.11
+ping 192.168.103.11
+~~~
+
+<br>
+
+~~~
+!@All PCs
+sudo su
+adduser admin
+> pass
+> pass
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### MARKING
+
+| PC  | QOS  |
+| --- | ---  |
+| NOC | AF41 |
+| SOC | AF33 |
+| HR  | CS2  |
+
+
+~~~
+!@R1
+conf t
+ ip access-list extended ACL-NOC
+  permit ip host 192.168.103.101 any
+ ip access-list extended ACL-SOC
+  permit ip host 192.168.103.102 any
+ ip access-list extended ACL-HR
+  permit ip host 192.168.103.103 any
+ !
+ class-map match-any CM-NOC
+  match access-group name ACL-NOC
+ class-map match-any CM-SOC
+  match access-group name ACL-SOC
+ class-map match-any CM-HR
+  match access-group name ACL-HR
+ !
+ policy-map PM1
+  class CM-NOC
+   set dscp AF41 
+  class CM-SOC
+   set dscp AF33
+  class CM-HR
+   set dscp CS2
+  class class-default
+   set dscp default
+ int g3
+  no service-policy input PM1
+  service-policy input PM1
+  end
+show policy-map int g3
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### POLICING & SHAPING
+
+__Download 5MB on PC__
+
+~~~
+!@R1-EDGE
+conf t
+ class-map match-any CM-NOC-TRAFFIC
+  match dscp AF41
+ class-map match-any CM-SOC-TRAFFIC
+  match dscp AF33
+ class-map match-any CM-HR-TRAFFIC
+  match dscp CS2
+ !
+ policy-map PM2
+  class CM-NOC-TRAFFIC
+   !shape ##########
+  class CM-SOC-TRAFFIC
+   !shape ##########
+  class CM-HR-TRAFFIC
+   police 80000 bc 8000 be 8000 
+    conform-action transmit  
+	exceed-action drop
+  class class-default
+   shape average 800000
+ !
+ int g1
+  service-policy output PM2
+  end
+~~~
+
+__REMOVE POLICY__
+~~~
+!@R1
+conf t
+ int g1
+  no service-policy output PM2
+  end
+~~~
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### 🎯 Exercise: Create a policy-map named PM3 to Shape/Police the ff: 
+
+| PC  | QOS  | KB/s |
+| --- | ---  | ---  |
+| NOC | AF41 | 50   |
+| SOC | AF33 | 30   |
+| HR  | CS2  | 20   |
+
+
+~~~
+!@R1-EDGE
+conf t
+ policy-map PM3
+  class CM-NOC-TRAFFIC
+   
+  class CM-SOC-TRAFFIC
+   
+  class CM-HR-TRAFFIC
+   
+  !
+  int g1
+   service-policy output PM3
+   end
+~~~
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### Exercise: Shape SSH Traffic from PCs
+
+~~~
+!@All PCs
+adduser admin
+> pass
+> pass
+~~~
+
+~~~
+!@R1
+conf t
+ ip nat inside source static tcp 192.168.103.101 22 208.8.8.11 2221
+ ip nat inside source static tcp 192.168.103.102 22 208.8.8.11 2222
+ ip nat inside source static tcp 192.168.103.103 22 208.8.8.11 2223
+ end
+~~~
+
+<br>
+<br>
+
+
+NOC = 12000 = 1.5kB
+SOC = 10000 = 1.25kB
+HR  = 9000  = 1.12kB
+
+~~~
+!@R1
+conf t
+ class-map match-all CM-NOC-SSH
+  match dscp AF41
+  match protocol SSH
+ class-map match-all CM-SOC-SSH
+  match dscp AF33
+  match protocol SSH
+ class-map match-all CM-HR-SSH
+  match dscp CS2
+  match protocol SSH
+ !
+ no policy-map PM4
+ policy-map PM4
+  class CM-NOC-SSH
+   shape average 12000
+  class CM-SOC-SSH
+   shape average 10000
+  class CM-HR-SSH
+   shape average 9000
+  class class-default
+ !
+ int g1
+  no service-policy output PM4
+  service-policy output PM4
+  end
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### CONGESTION AVOIDANCE
+
+~~~
+!@R1-EDGE
+conf t
+ class-map match-all VIP
+  match dscp AF41 
+ class-map match-all NORMAL
+  match dscp AF33
+ class-map match-all SCAVENGE
+  match dscp CS2
+ !
+ NO policy-map PM5
+ policy-map PM5
+  class VIP
+   priority 640               
+  class NORMAL
+   shape average 400000
+   !
+   bandwidth 160              
+   random-detect dscp-based  
+   random-detect ecn         
+  class SCAVENGE
+   shape average 400000
+   !
+   bandwidth 80            
+   random-detect dscp-based
+   random-detect ecn
+   !
+   random-detect dscp CS2 
+  class class-default
+   !
+ int g1
+  service-policy output PM5
+  end
+~~~
+
+
+<br>
+
+
+Drop Probobability for RED
+
+| DSCP | Min | Max |
+| ---  | --- | --- |
+| ALL   | 20  | 40  |
+
+
+
+<br>
+
+
+Drop Probobability for WRED
+
+| DSCP | Min | Max |
+| ---  | --- | --- |
+| EF   | 34  | 40  |
+| CS7  | 34  | 40  |
+| CS6  | 32  | 40  |
+| AF41 | 32  | 40  |
+| AF31 | 32  | 40  |
+| AF21 | 32  | 40  |
+| AF11 | 32  | 40  |
+| ---  | --- | --- |
+| CS5  | 30  | 40  |
+| CS4  | 28  | 40  |
+| CS3  | 26  | 40  |
+| AF42 | 28  | 40  |
+| AF32 | 28  | 40  |
+| AF22 | 28  | 40  |
+| AF12 | 28  | 40  |
+| ---  | --- | --- |
+| CS2  | 24  | 40  |
+| ---  | --- | --- |
+| AF43 | 24  | 40  |
+| AF33 | 24  | 40  |
+| AF23 | 24  | 40  |
+| AF13 | 24  | 40  |
+| ---  | --- | --- |
+| CS1  | 22  | 40  |
+| CS0  | 20  | 40  |
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### Exercise: Create a policy-map named PM6 and apply the ff QoS Mechanisms:
+- Prioritize traffic from HR, at least 60KB/s
+- Apply CBWFQ and reserve 30KB/s on both NOC & SOC
+- Make sure NOC & SOC does not exceed speeds beyond 40KB/s
+- The drop mechanism must be CBWFQ
+
+~~~
+!@R1-EDGE
+conf t
+ policy-map PM6
+  class CM-HR-TRAFFIC
+
+  class CM-NOC-TRAFFIC
+
+  class CM-SOC-TRAFFIC
+
+  !
+ int g1
+
+  end
+~~~
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+
+# Control Plane Policing
+
+
+### Prevent ICMP Overload
+
+~~~
+!@R1
+config t
+ no ip access-list extended PING
+ ip access-list extended PING
+  permit icmp any any
+ !
+ class-map CM-PING
+  match access-group name PING
+ !
+ no policy-map PM-PING
+ policy-map PM-PING
+  class CM-PING
+   police 8000 
+    conform-action transmit 
+	exceed-action drop
+ !
+ control-plane
+  service-policy input PM-PING
+  end
+sh policy-map control-plane
+~~~
+
+
+Verify:
+~~~
+!@cmd
+ping 208.8.8.11 -t -l 65500
+ping 208.8.8.11 -t -l 1000
+ping 208.8.8.11 -t -l 1200
+~~~
+
+
+<br>
+
+
+~~~
+!@R1
+conf t
+ control-plane
+  no service-policy input PM-PING
+  end
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+
+### Exercise: Rate-Limit the ff:
+
+| Service | Allowed bits/s   |
+| ---     | ---              |
+| SSH     | 32KB/s           |
+| TELNET  | 1KB/s            |
+| DAYTIME | Drop All Traffic |
+| FINGER  | Drop All Traffic |
+| HTTP    | 20KB/s           |
+| HTTPS   | 100KB/s          |
+
+~~~
+!@R1-EDGE
+conf t
+ service udp-small-servers
+ service tcp-small-servers
+ service finger
+ ip dns server
+ ip http server
+ ip http secure-server
+ end
+~~~
+
+
+~~~
+!@R1
+config t
+ ip access-list extended ACL-SSH
+  permit tcp any any eq 22
+ ip access-list extended ACL-TELNET
+  permit tcp any any eq 23
+ ip access-list extended ACL-DAYTIME
+  permit tcp any any eq 13
+ ip access-list extended ACL-FINGER
+  permit tcp any any eq 79
+ ip access-list extended ACL-HTTP
+  permit tcp any any eq 80
+ ip access-list extended ACL-HTTPS
+  permit tcp any any eq 443
+ !
+ class-map match-all CM-SSH
+  match access-group name ACL-SSH
+ class-map match-all CM-TELNET
+  match access-group name ACL-TELNET
+ class-map match-all CM-DAYTIME
+  match access-group name ACL-DAYTIME
+ class-map match-all CM-FINGER
+  match access-group name ACL-FINGER
+ class-map match-all CM-HTTP
+  match access-group name ACL-HTTP
+ class-map match-all CM-HTTPS
+  match access-group name ACL-HTTPS
+ !
+ policy-map PM-COPP
+  class CM-SSH
+   police 256000
+    conform-action transmit
+    exceed-action transmit
+  class CM-TELNET
+   police 8000 
+    conform-action transmit
+    exceed-action drop
+  class CM-DAYTIME
+   police 8000 
+    conform-action drop 
+    exceed-action drop
+  class CM-FINGER
+   police 8000 
+    conform-action drop 
+    exceed-action drop
+  class CM-HTTP
+   police 160000
+    conform-action drop 
+    exceed-action drop
+  class CM-HTTPS
+   police 800000
+    conform-action transmit
+    exceed-action drop
+ control-plane
+  service-policy input PM-COPP
+  end
+~~~

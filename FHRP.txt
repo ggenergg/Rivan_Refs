@@ -1,0 +1,484 @@
+# FHRP
+
+### Setup 
+
+CSR1000v:
+  Name: R1 UTM-PH
+  
+  | NetAdapter   |        |
+  | ---          | ---    |
+  | NetAdapter   | NAT    |
+  | NetAdapter 2 | VMNet2 |
+  | NetAdapter 3 | VMNet3 |
+
+
+CSR1000v:
+  Name: R2 UTM-JP
+  
+  | NetAdapter   |        |
+  | ---          | ---    |
+  | NetAdapter   | NAT    |
+  | NetAdapter 2 | VMNet2 |
+  | NetAdapter 3 | VMNet3 |
+
+
+CSR1000v:
+  Name: R3 UTM-US
+  
+  | NetAdapter   |        |
+  | ---          | ---    |
+  | NetAdapter   | NAT    |
+  | NetAdapter 2 | VMNet2 |
+  | NetAdapter 3 | VMNet3 |
+  
+
+TinyCore (yvm.ova):
+  Name: P1 BLDG-PH
+  
+  | NetAdapter   |                    |
+  | ---          | ---                |
+  | NetAdapter   | VMNet3             |
+
+
+TinyCore (yvm.ova):
+  Name: P2 BLDG-JP
+  
+  | NetAdapter   |                    |
+  | ---          | ---                |
+  | NetAdapter   | VMNet3             |
+  
+
+TinyCore (yvm.ova):
+  Name: P3 BLDG-US
+  
+  | NetAdapter   |                    |
+  | ---          | ---                |
+  | NetAdapter   | VMNet3             |
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### PRECONFIGS
+
+~~~
+!@UTM-PH  R1
+conf t
+ hostname UTM-PH--R1
+ enable secret pass
+ service password-encryption
+ no logging cons
+ ip domain lookup
+ ip domain lookup source-interface G2
+ ip name-server 192.168.102.8
+ line vty 0 14
+  transport input all
+  password pass
+  login local
+  exec-timeout 0 0
+ int g1
+  ip add 208.8.8.11 255.255.255.0
+  ip nat outside
+  no shut
+ int g2
+  ip add 192.168.102.11 255.255.255.0
+  ip nat inside
+  no shut
+ int g3
+  ip add 192.168.103.11 255.255.255.0
+  ip nat inside
+  no shut
+ !
+ ip access-list extended NAT
+  permit ip 192.168.102.0 0.0.0.255 any
+  permit ip 192.168.103.0 0.0.0.255 any
+ !
+ ip nat inside source list NAT int g1 overload
+ !
+ username admin privilege 15 secret pass
+ ip http server
+ ip http secure-server
+ ip http authentication local
+ ip route 0.0.0.0 0.0.0.0 208.8.8.2
+ end
+wr
+!
+~~~
+
+<br>
+
+~~~
+!@UTM-JP  R2
+conf t
+ hostname UTM-JP--R2
+ enable secret pass
+ service password-encryption
+ no logging cons
+ ip domain lookup
+ ip domain lookup source-interface G2
+ ip name-server 192.168.102.8
+ line vty 0 14
+  transport input all
+  password pass
+  login local
+  exec-timeout 0 0
+ int g1
+  ip add 208.8.8.12 255.255.255.0
+  ip nat outside
+  no shut
+ int g2
+  ip add 192.168.102.12 255.255.255.0
+   ip nat inside
+  no shut
+ int g3
+  ip add 192.168.103.12 255.255.255.0
+  ip nat inside
+  no shut
+ !
+ ip access-list extended NAT
+  permit ip 192.168.102.0 0.0.0.255 any
+  permit ip 192.168.103.0 0.0.0.255 any
+ !
+ ip nat inside source list NAT int g1 overload
+ !
+ username admin privilege 15 secret pass
+ ip http server
+ ip http secure-server
+ ip http authentication local
+ ip route 0.0.0.0 0.0.0.0 208.8.8.2
+ end
+wr
+!
+~~~
+
+<br>
+
+~~~
+!@UTM-US  R3
+conf t
+ hostname UTM-US--R3
+ enable secret pass
+ service password-encryption
+ no logging cons
+ ip domain lookup
+ ip domain lookup source-interface G2
+ ip name-server 192.168.102.8
+ line vty 0 14
+  transport input all
+  password pass
+  login local
+  exec-timeout 0 0
+ int g1
+  ip add 208.8.8.13 255.255.255.0
+  ip nat outside
+  no shut
+ int g2
+  ip add 192.168.102.13 255.255.255.0
+  ip nat inside
+  no shut
+ int g3
+  ip add 192.168.103.13 255.255.255.0
+  ip nat inside
+  no shut
+ !
+ ip access-list extended NAT
+  permit ip 192.168.102.0 0.0.0.255 any
+  permit ip 192.168.103.0 0.0.0.255 any
+ !
+ ip nat inside source list NAT int g1 overload
+ !
+ username admin privilege 15 secret pass
+ ip http server
+ ip http secure-server
+ ip http authentication local
+ ip route 0.0.0.0 0.0.0.0 208.8.8.2
+ end
+wr
+!
+~~~
+
+<br>
+
+~~~
+!@BLDG-PH
+sudo su
+hostname BLDG-PH--PC1
+ifconfig eth0 192.168.103.101 netmask 255.255.255.0 up
+route add default gw 192.168.103.11
+ping 192.168.103.11
+~~~
+
+<br>
+
+~~~
+!@BLDG-JP
+sudo su
+hostname BLDG-JP--PC2
+ifconfig eth0 192.168.103.102 netmask 255.255.255.0 up
+route add default gw 192.168.103.12
+ping 192.168.103.12
+~~~
+
+<br>
+
+~~~
+!@BLDG-US
+sudo su
+hostname BLDG-US--PC3
+ifconfig eth0 192.168.103.103 netmask 255.255.255.0 up
+route add default gw 192.168.103.13
+ping 192.168.103.13
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+## HSRP
+
+~~~
+!@R1 (PRIMARY INTERNET)
+conf t
+ track 1 int gi 1 line-protocol
+ !
+ int gi 3
+  standby 10 ip 192.168.103.69
+  standby 10 preempt
+  standby 10 priority 120
+  standby 10 track 1 decrement 60
+  end
+show standby
+~~~
+
+~~~
+!@R2 (BACKUP)
+conf t
+ track 1 int gi 1 line-protocol
+ !
+ int gi 3
+  standby 10 ip 192.168.103.69
+  standby 10 preempt
+  standby 10 priority 110
+  standby 10 track 1 decrement 60
+  end
+show standby
+~~~
+
+~~~
+!@R3 (BACKUP of BACKUP / Last Resort)
+conf t
+ int gi 3
+  standby 10 ip 192.168.103.69
+  standby 10 priority 100
+  end
+show standby
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### HSRPv1 vs HSRPv2
+
+~~~
+!@R1 (PRIMARY INTERNET)
+conf t
+ track 1 int gi 1 line-protocol
+ !
+ int gi 3
+  no standby 10
+  standby version 2
+  standby 10 ip 192.168.103.69
+  standby 10 preempt
+  standby 10 priority 120
+  standby 10 track 1 decrement 60
+  end
+show standby
+~~~
+
+~~~
+!@R2 (BACKUP)
+conf t
+ track 1 int gi 1 line-protocol
+ !
+ int gi 3
+  no standby 10
+  standby version 2
+  standby 10 ip 192.168.103.69
+  standby 10 preempt
+  standby 10 priority 110
+  standby 10 track 1 decrement 60
+  end
+show standby
+~~~
+
+~~~
+!@R3 (BACKUP of BACKUP / Last Resort)
+conf t
+ int gi 3
+  no standby 10
+  standby version 2
+  standby 10 ip 192.168.103.69
+  standby 10 priority 100
+  end
+show standby
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### VRRP
+
+~~~
+!@R1 (PRIMARY INTERNET)
+conf t
+ track 2 int gi 1 line-protocol
+ !
+ int gi 3
+  no standby 10
+  vrrp 10 ip 192.168.103.69
+  vrrp 10 preempt
+  vrrp 10 priority 120
+  vrrp 10 track 1 decrement 60
+  end
+show vrrp
+~~~
+
+~~~
+!@R2 (BACKUP)
+conf t
+ track 1 int gi 1 line-protocol
+ !
+ int gi 3
+  no standby 10
+  vrrp 10 ip 192.168.103.69
+  vrrp 10 preempt
+  vrrp 10 priority 110
+  vrrp 10 track 1 decrement 60
+  end
+show vrrp
+~~~
+
+~~~
+!@R3 (BACKUP of BACKUP / Last Resort)
+conf t
+ int gi 3
+  no standby 10
+  vrrp 10 ip 192.168.103.69
+  vrrp 10 priority 100
+  end
+show vrrp
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### GLBP
+
+~~~
+!@R1 (PRIMARY INTERNET)  AVG
+conf t
+ track 3 int gi 1 line-protocol
+ !
+ int gi 3
+  no vrrp 10
+  glbp 10 ip 192.168.103.69
+  glbp 10 preempt
+  glbp 10 priority 120
+  glbp 10 load-balancing round-robin
+  glbp 10 weighting 120 lower 70 upper 100
+  glbp 10 weighting track 3 decrement 60
+  end
+show glbp
+~~~
+
+~~~
+!@R2 (BACKUP)    AVF
+conf t
+ track 3 int gi 1 line-protocol
+ !
+ int gi 3
+  no vrrp 10
+  glbp 10 ip 192.168.103.69
+  glbp 10 preempt
+  glbp 10 priority 110
+  glbp 10 load-balancing round-robin
+  glbp 10 weighting 120 lower 70 upper 100
+  glbp 10 weighting track 3 decrement 60
+  end
+show glbp
+~~~
+
+~~~
+!@R3 (BACKUP of BACKUP / Last Resort)  AVF
+conf t
+ int gi 3
+  no vrrp 10
+  glbp 10 ip 192.168.103.69
+  glbp 10 preempt
+  glbp 10 priority 109
+  glbp 10 load-balancing round-robin
+  glbp 10 weighting 120 lower 70 upper 100
+  end
+show glbp
+~~~
+
+
+<br>
+<br>
+
+
+
+Verify Load Balancing:
+~~~
+!@PC1 - BLDG-PH
+sudo su
+route delete default gw 192.168.103.11
+route add default gw 192.168.103.69
+ping 8.8.8.8
+~~~
+
+~~~
+!@PC2 - BLDG-JP
+sudo su
+route delete default gw 192.168.103.12
+route add default gw 192.168.103.69
+ping 8.8.8.8
+~~~
+
+~~~
+!@PC3 - BLDG-US
+sudo su
+route delete default gw 192.168.103.13
+route add default gw 192.168.103.69
+ping 8.8.8.8
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
